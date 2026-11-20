@@ -1,0 +1,5 @@
+# One muon, thick line -- the "single event" figure.
+/control/execute macros/vis.mac
+/vis/viewer/set/globalLineWidthScale 2.5
+/vis/scene/endOfEventAction refresh
+/run/beamOn 1

@@ -1,0 +1,7 @@
+# 300 accumulated events -- shows the angular spread and the muons the
+# coincidence trigger rejects.
+/control/execute macros/vis.mac
+/vis/viewer/set/globalLineWidthScale 1.0
+/vis/geometry/set/colour Layer 0 0.72 0.75 0.78 0.16
+/vis/scene/endOfEventAction accumulate 400
+/run/beamOn 300

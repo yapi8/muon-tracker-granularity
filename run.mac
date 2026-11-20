@@ -1,0 +1,5 @@
+# Batch template. The C++ main already calls /run/beamOn, so this is
+# only needed if you want to drive the app from a macro instead.
+/run/initialize
+/run/printProgress 2000
+/run/beamOn 20000

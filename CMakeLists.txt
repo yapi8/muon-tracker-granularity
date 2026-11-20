@@ -1,33 +1,19 @@
-cmake_minimum_required(VERSION 3.16...3.27)
-project(muontracker LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+project(MuonTracker)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# ui_all vis_all pulls in the OpenGL viewer and the Qt/tcsh UI sessions.
-# Without these two components the "vis" mode silently does nothing.
+# ui_all vis_all pulls in the interactive session and the visualisation
+# drivers (OGL, VRML, HepRep...). Without them G4VisExecutive links but
+# has no viewer to open, and /vis/open fails at runtime.
 find_package(Geant4 REQUIRED ui_all vis_all)
 include(${Geant4_USE_FILE})
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
-file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
 
-add_executable(muontracker muontracker.cc ${sources} ${headers})
-target_link_libraries(muontracker ${Geant4_LIBRARIES})
+add_executable(MuonTracker muontracker.cc ${sources})
+target_link_libraries(MuonTracker ${Geant4_LIBRARIES})
 
-# Copy the macros next to the binary so /control/execute finds them
-# whichever directory you launch from.
-set(MACRO_FILES
-    macros/vis.mac
-    macros/vis_single.mac
-    macros/vis_dense.mac
-    macros/run.mac)
-
-foreach(mac ${MACRO_FILES})
-  configure_file(${PROJECT_SOURCE_DIR}/${mac}
-                 ${PROJECT_BINARY_DIR}/${mac} COPYONLY)
-endforeach()
-
-install(TARGETS muontracker DESTINATION bin)
+# copy vis.mac next to the executable so /control/execute vis.mac works
+configure_file(${PROJECT_SOURCE_DIR}/vis.mac
+               ${PROJECT_BINARY_DIR}/vis.mac COPYONLY)

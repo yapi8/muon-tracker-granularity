@@ -1,0 +1,24 @@
+# Exercises the analysis chain on synthetic data. Geant4 is far too
+# heavy to install in CI, so the simulation itself is not built here.
+name: analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r analysis/requirements.txt
+      - name: generate synthetic hits
+        run: python analysis/make_synthetic.py --outdir results_synth --events 2000
+      - name: run split-half analysis
+        run: python analysis/analyze.py --indir results_synth
+      - name: plot
+        run: python analysis/plot_results.py --infile results_synth/resolution.csv --out results_synth/plot.png

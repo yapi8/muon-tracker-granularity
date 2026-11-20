@@ -1,97 +1,92 @@
-// ===================================================================
-//  muontracker -- detector granularity scan for cosmic-ray muon
-//                 track reconstruction
+// muontracker.cc - main entry point
 //
-//  Usage:
-//     muontracker <N_layers> <N_events>          batch, writes CSV
-//     muontracker <N_layers> <N_events> vis      opens the OpenGL viewer
+// Batch mode (unchanged, this is what produced the results):
+//     MuonTracker.exe <numberOfLayers> <numberOfEvents>
+//     e.g.  MuonTracker.exe 16 20000
 //
-//  Examples:
-//     muontracker 64 20000
-//     muontracker 16 1 vis
-// ===================================================================
-
-#include "DetectorConstruction.hh"
-#include "ActionInitialization.hh"
+// Visualisation mode (new - adds a third argument):
+//     MuonTracker.exe 16 0 vis
+//     opens a Geant4 viewer, runs vis.mac, and lets you save an image.
+//
+// The only changes from the original file are the three vis-related
+// includes and the block marked "visualisation mode" near the bottom.
 
 #include "G4RunManagerFactory.hh"
 #include "G4UImanager.hh"
-#include "G4UIExecutive.hh"
-#include "G4VisExecutive.hh"
 #include "G4SystemOfUnits.hh"
-#include "Randomize.hh"
+
+#include "G4VisExecutive.hh"      // <-- added
+#include "G4UIExecutive.hh"       // <-- added
 
 #include "QGSP_BERT.hh"
 #include "G4EmStandardPhysics_option4.hh"
 
+#include "DetectorConstruction.hh"
+#include "PrimaryGeneratorAction.hh"
+#include "ScintillatorSD.hh"
+
+#include <cstdlib>
 #include <string>
-#include <sstream>
 #include <iostream>
-#include <ctime>
 
 int main(int argc, char** argv)
 {
-  if (argc < 3) {
-    std::cout <<
-      "usage: muontracker <N_layers> <N_events> [vis]\n"
-      "   e.g. muontracker 64 20000\n"
-      "        muontracker 16 1 vis\n";
-    return 1;
-  }
+    // ---- read command line arguments ----
+    G4int nLayers = (argc > 1) ? std::atoi(argv[1]) : 4;
+    G4int nEvents = (argc > 2) ? std::atoi(argv[2]) : 10000;
+    G4bool visMode = (argc > 3 && std::string(argv[3]) == "vis");   // <-- added
 
-  const G4int nLayers = std::stoi(argv[1]);
-  const G4int nEvents = std::stoi(argv[2]);
-  const G4bool visMode = (argc > 3 && std::string(argv[3]) == "vis");
+    std::cout << "=== MuonTracker: N = " << nLayers
+              << " layers, " << nEvents << " events ===" << std::endl;
 
-  // Reproducible by default. Change or seed from the clock if you want
-  // independent repeats.
-  CLHEP::HepRandom::setTheSeed(1234);
+    // ---- run manager (serial mode keeps CSV writing simple) ----
+    auto* runManager =
+        G4RunManagerFactory::CreateRunManager(G4RunManagerType::Serial);
 
-  // Serial run manager: the CSV writer is a single stream, and a serial
-  // run keeps event IDs and the random sequence reproducible.
-  auto* runManager =
-      G4RunManagerFactory::CreateRunManager(G4RunManagerType::Serial);
+    // ---- 1. geometry ----
+    runManager->SetUserInitialization(new DetectorConstruction(nLayers));
 
-  runManager->SetUserInitialization(new DetectorConstruction(nLayers));
+    // ---- 2. physics ----
+    auto* physics = new QGSP_BERT;
+    physics->ReplacePhysics(new G4EmStandardPhysics_option4());
+    physics->SetDefaultCutValue(1.*mm);
+    runManager->SetUserInitialization(physics);
 
-  // ---- physics ------------------------------------------------------
-  // QGSP_BERT is the general-purpose hadronic list; the EM part is
-  // replaced with option4, the "most accurate" EM set, because multiple
-  // Coulomb scattering is the effect this study is measuring.
-  auto* physics = new QGSP_BERT;
-  physics->ReplacePhysics(new G4EmStandardPhysics_option4);
-  physics->SetDefaultCutValue(1.0 * mm);
-  runManager->SetUserInitialization(physics);
+    // ---- 3. primary muons ----
+    runManager->SetUserAction(new PrimaryGeneratorAction(nLayers));
 
-  runManager->SetUserInitialization(new ActionInitialization(nLayers));
+    runManager->Initialize();
 
-  auto* ui = G4UImanager::GetUIpointer();
+    G4UImanager* UI = G4UImanager::GetUIpointer();
 
-  if (visMode) {
-    auto* visManager = new G4VisExecutive;
-    visManager->Initialize();
+    // ================= visualisation mode ==========================
+    if (visMode) {
+        auto* visManager = new G4VisExecutive;
+        visManager->Initialize();
 
-    auto* session = new G4UIExecutive(argc, argv);
-    ui->ApplyCommand("/control/execute macros/vis.mac");
+        auto* ui = new G4UIExecutive(argc, argv);
+        UI->ApplyCommand("/control/execute vis.mac");
+        ui->SessionStart();
 
-    std::ostringstream cmd;
-    cmd << "/run/beamOn " << nEvents;
-    ui->ApplyCommand(cmd.str());
+        delete ui;
+        delete visManager;
+        delete runManager;
+        return 0;
+    }
+    // ===============================================================
 
-    session->SessionStart();
+    // ---- open the output CSV for this configuration ----
+    std::string fname = "results/hits_N" + std::to_string(nLayers) + ".csv";
+    ScintillatorSD::OpenFile(fname);
 
-    delete session;
-    delete visManager;
-  }
-  else {
-    ui->ApplyCommand("/run/initialize");
-    ui->ApplyCommand("/run/printProgress 2000");
+    // ---- run ----
+    UI->ApplyCommand("/run/printProgress 1000");
+    UI->ApplyCommand("/run/beamOn " + std::to_string(nEvents));
 
-    std::ostringstream cmd;
-    cmd << "/run/beamOn " << nEvents;
-    ui->ApplyCommand(cmd.str());
-  }
+    ScintillatorSD::CloseFile();
 
-  delete runManager;
-  return 0;
+    std::cout << "=== Finished. Data written to " << fname << " ===" << std::endl;
+
+    delete runManager;
+    return 0;
 }
