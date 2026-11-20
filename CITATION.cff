@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+title: >-
+  How Finely Must We Slice? Detector Granularity in Cosmic-Ray
+  Muon Track Reconstruction
+message: If you use this software, please cite it as below.
+type: software
+authors:
+  - family-names: Sutanto
+    given-names: Callie Angeline
+  - family-names: Karyanto
+    given-names: Lorenzo
+year: 2026
+license: MIT
+abstract: >-
+  Geant4 simulation study of how the number of active sampling
+  layers in a muon tracker affects angular resolution, at fixed
+  total stack height. Resolution improves to a minimum at N = 64
+  and degrades thereafter as multiple Coulomb scattering in the
+  added scintillator overtakes the benefit of extra measurement
+  points.
